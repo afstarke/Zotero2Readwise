@@ -4,10 +4,12 @@ from os import environ
 from typing import Dict, List, Optional
 
 from pyzotero.zotero import Zotero
-from pyzotero.zotero_errors import ParamNotPassed, UnsupportedParams
 
 from zotero2readwise import FAILED_ITEMS_DIR
 
+class ZoteroError(Exception):
+    """Base exception for Zotero-related errors"""
+    pass
 
 @dataclass
 class ZoteroItem:
@@ -54,7 +56,6 @@ class ZoteroItem:
                 creators_str += et_al
             self.creators = creators_str
 
-
     def get_nonempty_params(self) -> Dict:
         return {k: v for k, v in self.__dict__.items() if v}
 
@@ -63,8 +64,6 @@ def get_zotero_client(
     library_id: str = None, api_key: str = None, library_type: str = "user"
 ) -> Zotero:
     """Create a Zotero client object from Pyzotero library
-
-    Zotero userID and Key are available
 
     Parameters
     ----------
@@ -80,30 +79,34 @@ def get_zotero_client(
     -------
     Zotero
         a Zotero client object
+    
+    Raises
+    ------
+    ZoteroError
+        If required parameters are missing or invalid
     """
-
     if library_id is None:
         try:
             library_id = environ["ZOTERO_LIBRARY_ID"]
         except KeyError:
-            raise ParamNotPassed(
-                "No value for library_id is found. "
-                "You can set it as an environment variable `ZOTERO_LIBRARY_ID` or use `library_id` to set it."
+            raise ZoteroError(
+                "No value for library_id found. "
+                "Set it as environment variable ZOTERO_LIBRARY_ID or pass it as library_id."
             )
 
     if api_key is None:
         try:
             api_key = environ["ZOTERO_KEY"]
         except KeyError:
-            raise ParamNotPassed(
-                "No value for api_key is found. "
-                "You can set it as an environment variable `ZOTERO_KEY` or use `api_key` to set it."
+            raise ZoteroError(
+                "No value for api_key found. "
+                "Set it as environment variable ZOTERO_KEY or pass it as api_key."
             )
 
     if library_type is None:
         library_type = environ.get("LIBRARY_TYPE", "user")
     elif library_type not in ["user", "group"]:
-        raise UnsupportedParams("library_type value can either be 'user' or 'group'.")
+        raise ValueError("library_type must be either 'user' or 'group'")
 
     return Zotero(
         library_id=library_id,
